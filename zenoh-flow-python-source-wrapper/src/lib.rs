@@ -33,12 +33,11 @@ use libloading::Library;
 static LOAD_FLAGS: std::os::raw::c_int =
     libloading::os::unix::RTLD_NOW | libloading::os::unix::RTLD_GLOBAL;
 
-pub static PY_LIB: &str = env!("PY_LIB");
+
 
 #[export_source]
 struct PySource {
     state: Arc<PythonState>,
-    _lib: Arc<Library>,
 }
 
 #[async_trait]
@@ -48,7 +47,7 @@ impl Source for PySource {
         configuration: Option<Configuration>,
         mut outputs: Outputs,
     ) -> Result<Self> {
-        let lib = Arc::new(load_self().map_err(|_| zferror!(ErrorKind::NotFound))?);
+
 
         pyo3::prepare_freethreaded_python();
 
@@ -129,7 +128,7 @@ impl Source for PySource {
             }
         })?);
 
-        Ok(Self { _lib: lib, state })
+        Ok(Self { state })
     }
 }
 
@@ -150,22 +149,6 @@ impl Node for PySource {
         })
         .map_err(|e| Python::with_gil(|py| from_pyerr_to_zferr(e, &py)))?;
         Ok(())
-    }
-}
-
-fn load_self() -> Result<Library> {
-    log::trace!("Python Source Wrapper loading Python {}", PY_LIB);
-
-    // Very dirty hack! We explicit load the python library!
-    let lib_name = libloading::library_filename(PY_LIB);
-    unsafe {
-        #[cfg(target_family = "unix")]
-        let lib = Library::open(Some(lib_name), LOAD_FLAGS)?;
-
-        #[cfg(target_family = "windows")]
-        let lib = Library::new(lib_name)?;
-
-        Ok(lib)
     }
 }
 

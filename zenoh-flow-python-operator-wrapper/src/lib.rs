@@ -34,13 +34,11 @@ use libloading::Library;
 static LOAD_FLAGS: std::os::raw::c_int =
     libloading::os::unix::RTLD_NOW | libloading::os::unix::RTLD_GLOBAL;
 
-pub static PY_LIB: &str = env!("PY_LIB");
 
 #[export_operator]
 #[derive(Clone)]
 struct PyOperator {
     state: Arc<PythonState>,
-    _lib: Arc<Library>,
 }
 
 #[async_trait]
@@ -51,7 +49,7 @@ impl Operator for PyOperator {
         mut inputs: Inputs,
         mut outputs: Outputs,
     ) -> Result<Self> {
-        let lib = Arc::new(load_self().map_err(|_| zferror!(ErrorKind::NotFound))?);
+
 
         pyo3::prepare_freethreaded_python();
 
@@ -140,7 +138,7 @@ impl Operator for PyOperator {
             }
         })?);
 
-        Ok(Self { _lib: lib, state })
+        Ok(Self { state })
     }
 }
 
@@ -164,20 +162,6 @@ impl Node for PyOperator {
     }
 }
 
-fn load_self() -> Result<Library> {
-    log::trace!("Python Operator Wrapper loading Python {}", PY_LIB);
-    // Very dirty hack! We explicit load the python library!
-    let lib_name = libloading::library_filename(PY_LIB);
-    unsafe {
-        #[cfg(target_family = "unix")]
-        let lib = Library::open(Some(lib_name), LOAD_FLAGS)?;
-
-        #[cfg(target_family = "windows")]
-        let lib = Library::new(lib_name)?;
-
-        Ok(lib)
-    }
-}
 
 fn read_file(path: &Path) -> Result<String> {
     Ok(fs::read_to_string(path)?)
