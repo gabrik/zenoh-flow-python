@@ -34,8 +34,6 @@ use libloading::Library;
 static LOAD_FLAGS: std::os::raw::c_int =
     libloading::os::unix::RTLD_NOW | libloading::os::unix::RTLD_GLOBAL;
 
-pub static PY_LIB: &str = env!("PY_LIB");
-
 #[export_operator]
 #[derive(Clone)]
 struct PyOperator {
@@ -165,20 +163,25 @@ impl Node for PyOperator {
 }
 
 fn load_self() -> Result<Library> {
-    log::trace!("Python Operator Wrapper loading Python {}", PY_LIB);
     // Very dirty hack! We explicit load the python library!
-    let lib_name = libloading::library_filename(PY_LIB);
-    unsafe {
-        #[cfg(target_family = "unix")]
-        let lib = Library::open(Some(lib_name), LOAD_FLAGS)?;
+    let config = pyo3_build_config::get();
+    match &config.lib_name {
+        Some(name) => {
+        log::trace!("Python Operator Wrapper loading Python {}", name);
+            let lib_name = libloading::library_filename(name.clone());
+            unsafe {
+                #[cfg(target_family = "unix")]
+                let lib = Library::open(Some(lib_name), LOAD_FLAGS)?;
 
-        #[cfg(target_family = "windows")]
-        let lib = Library::new(lib_name)?;
+                #[cfg(target_family = "windows")]
+                let lib = Library::new(lib_name)?;
 
-        Ok(lib)
+                Ok(lib)
+            }
+        },
+        None => bail!("Unable to find Python library, maybe need to install libpython3.x-dev or python3.x-dev"),
     }
 }
-
 fn read_file(path: &Path) -> Result<String> {
     Ok(fs::read_to_string(path)?)
 }
