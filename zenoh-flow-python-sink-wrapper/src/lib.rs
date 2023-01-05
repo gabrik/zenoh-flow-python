@@ -47,7 +47,7 @@ impl Sink for PySink {
         configuration: Option<Configuration>,
         mut inputs: Inputs,
     ) -> Result<Self> {
-        let lib = Arc::new(load_self().map_err(|_| zferror!(ErrorKind::NotFound))?);
+        let lib = Arc::new(load_self()?);
 
         pyo3::prepare_freethreaded_python();
 
@@ -157,15 +157,15 @@ fn load_self() -> Result<Library> {
             let lib_name = libloading::library_filename(name.clone());
             unsafe {
                 #[cfg(target_family = "unix")]
-                let lib = Library::open(Some(lib_name), LOAD_FLAGS)?;
+                let lib = Library::open(Some(lib_name), LOAD_FLAGS).map_err(|_| zferror!(ErrorKind::NotFound))?;
 
                 #[cfg(target_family = "windows")]
-                let lib = Library::new(lib_name)?;
+                let lib = Library::new(lib_name).map_err(|_| zferror!(ErrorKind::NotFound))?;
 
                 Ok(lib)
             }
         },
-        None => bail!("Unable to find Python library, maybe need to install libpython3.x-dev or python3.x-dev"),
+        None => zenoh_flow::bail!(ErrorKind::NotFound, "Unable to find Python library, maybe need to install libpython3.x-dev or python3.x-dev"),
     }
 }
 
