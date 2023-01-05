@@ -179,7 +179,10 @@ fn load_self() -> Result<Library> {
                 Ok(lib)
             }
         },
-        None => zenoh_flow::bail!(ErrorKind::NotFound, "Unable to find Python library, maybe need to install libpython3.x-dev or python3.x-dev"),
+        None => {
+            log::error!("Unable to find Python library, maybe need to install libpython3.x-dev or python3.x-dev");
+            zenoh_flow::bail!(ErrorKind::NotFound, "Unable to find Python library, maybe need to install libpython3.x-dev or python3.x-dev")
+        },
     }
 }
 
